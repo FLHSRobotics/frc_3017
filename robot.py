@@ -86,25 +86,33 @@ class SwerveDriveBot(wpilib.TimedRobot):
 
     def teleopPeriodic(self):
         """This function is called periodically during teleoperated mode."""
-        # Process
-        Drive = -self.joystick.getY()
-        Strafe = self.joystick.getX()
-        Rotate = self.joystick.getZ()
 
-        # Calculate the vector for each swerve module
+        drive = -self.joystick.getY()
+        strafe = self.joystick.getX()
+        rotate = self.joystick.getZ()
+
+        wheel_angles = [math.pi / 4, 3 * math.pi / 4, 5 * math.pi / 4, 7 * math.pi / 4]
+
         for i, module in enumerate(self.swerve_modules):
-            angle = math.atan2(Drive + Rotate * ((-1) ** i), Strafe + Rotate * ((-1) ** (i // 2)))
-            speed = math.hypot(Drive + Rotate * ((-1) ** i), Strafe + Rotate * ((-1) ** (i // 2)))
+            rotation_x = rotate * math.cos(wheel_angles[i])
+            rotation_y = rotate * math.sin(wheel_angles[i])
+
+            wheel_x = strafe + rotation_x
+            wheel_y = drive + rotation_y
+
+            speed = math.hypot(wheel_x, wheel_y)
+            angle = math.atan2(wheel_y, wheel_x)
+
             module.set_speed_and_angle(speed, angle)
 
 
         # Telemetry
         self.logger.info("=========================")
         self.logger.info("Player inputs:")
-        self.logger.info(f"\tGoal Velocity (Y): {Drive}")
-        self.logger.info(f"\tGoal Velocity (X): {Strafe}")
-        self.logger.info(f"\tGoal Angular Velocity: {Rotate}")
-        return Drive, Strafe, Rotate
+        self.logger.info(f"\tGoal Velocity (Y): {drive}")
+        self.logger.info(f"\tGoal Velocity (X): {strafe}")
+        self.logger.info(f"\tGoal Angular Velocity: {rotate}")
+        return drive, strafe, rotate
 
     def testInit(self):
         """This function is called once each time the robot enters test mode."""
