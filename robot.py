@@ -18,16 +18,41 @@ class SwerveModule:
         self.encoder = ctre.CANCoder(encoder_id)
         self.offset = offset
         self.encoder.configMagnetOffset(self.offset)
+        self.steer_motor.configSelectedFeedbackSensor(ctre.FeedbackDevice.IntegratedSensor)
 
     def set_speed_and_angle(self, speed, angle):
-        current_angle = self.encoder.getAbsolutePosition()
-        target_angle = math.degrees(angle) % 360
-        angle_difference = target_angle - current_angle
-        angle_difference = (angle_difference + 180) % 360 - 180
-        if abs(angle_difference) > 90:
-            angle_difference = (angle_difference + 180) % 360 - 180
+
+        # Convert angle from radians to degrees and adjust for offset
+        desired_angle = math.degrees(angle) - self.offset
+
+        # Ensure the angle is within [0, 360) range
+        desired_angle = desired_angle % 360
+        current_angle = self.encoder.getAbsolutePosition() - self.offset
+        current_angle = current_angle % 360
+
+        # Determine the shortest path to the desired angle
+        angle_difference = desired_angle - current_angle
+        if angle_difference > 180:
+            angle_difference -= 360
+        elif angle_difference < -180:
+            angle_difference += 360
+
+        # Reverse the wheel if necessary to minimize rotation
+        if angle_difference > 90 or angle_difference < -90:
+            if angle_difference > 90:
+                angle_difference -= 180
+            else:
+                angle_difference += 180
             speed = -speed
-        self.steer_motor.set(ctre.ControlMode.Position, math.radians(current_angle + angle_difference))
+
+        # Convert angle difference to encoder units, considering the encoder resolution
+        encoder_ticks_per_rotation = 4096 # Encoder Resolution
+        target_position = (angle_difference / 360.0) * encoder_ticks_per_rotation
+
+        # Set steering motor to the calculated target position
+        self.steer_motor.set(ctre.ControlMode.Position, target_position)
+
+        # Set drive motor speed
         self.drive_motor.set(ctre.ControlMode.PercentOutput, speed)
 
 
@@ -35,12 +60,11 @@ class SwerveModule:
 
 class SwerveDriveBot(wpilib.TimedRobot):
     def robotInit(self):
-        # Setting Params
         self.timer = wpilib.Timer()
         self.logger = logging.getLogger('SwerveDriveBot')
 
-        # NO MAGIC VALUES!
         self.joystick = wpilib.Joystick(0)
+
         self.swerve_modules = [
             SwerveModule(1, 2, 1, 0),
             SwerveModule(3, 4, 2, 0),
@@ -67,8 +91,12 @@ class SwerveDriveBot(wpilib.TimedRobot):
         Strafe = self.joystick.getX()
         Rotate = self.joystick.getZ()
 
-        for module in self.swerve_modules:
-            module.set_speed_and_angle(math.hypot(Drive, Strafe), math.atan2(Drive, Strafe))
+        # Calculate the vector for each swerve module
+        for i, module in enumerate(self.swerve_modules):
+            angle = math.atan2(Drive + Rotate * ((-1) ** i), Strafe + Rotate * ((-1) ** (i // 2)))
+            speed = math.hypot(Drive + Rotate * ((-1) ** i), Strafe + Rotate * ((-1) ** (i // 2)))
+            module.set_speed_and_angle(speed, angle)
+
 
         # Telemetry
         self.logger.info("=========================")
