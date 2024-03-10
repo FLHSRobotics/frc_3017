@@ -2,7 +2,7 @@
 
 ## Intro
 
-The goal of this document is to provide a Python-centric guided tour of the FRC documentation. You will be expected to thoroughly read through the referenced documents. You will not be expected to have any programming knowledge. Hopefully, by the end of reading through all of this, you will have a fully programmed robot and the confidence to tackle more complex problems.
+The goal of this document is to provide a Python-centric guided tour of the FRC documentation. You will be expected to thoroughly read through the referenced documents. You will not be expected to have any FRC programming knowledge but some understanding of basic Python syntax is expected. Hopefully, by the end of reading through all of this, you will have a fully programmed robot and the confidence to tackle more complex problems.
 
 The official FRC Documentation can be found [here](https://docs.wpilib.org/en/stable/index.html)
 
@@ -30,7 +30,16 @@ This guide will flow as follows:
   - [Python Setup](#python-setup)
     - [IDE](#ide)
     - [Robotpy](#robotpy)
-  3. [Programming in Python](#programming-in-pythong)
+  3. [Programming in Python](#programming-in-python)
+  - [From a High Level](#from-a-high-level)
+    - [Note on Objects and Classes](#note-on-objects-and-classes)
+  - [MyRobot Class](#myrobot-class)
+  - [Robot Init](#robot-init)
+    1. [General Setup](#general-setup)
+    2. [Hardware Configuration](#hardware-configuration)
+    3. [Hardware Initialization](#hardware-initialization)
+      - [PWM](#pwm)
+      - [CAN](#can)
 
 ## System Overview
 
@@ -170,7 +179,9 @@ PWM connects directly to PWM ports on the RoboRIO. You are limited to the number
 
 ## System Setup
 
-Now that we have everything plugged in and turned on, we have the next goals in mind:
+Now that we have everything plugged in and turned on, we need to set up the software. Please read the [Software Component Overview](https://docs.wpilib.org/en/stable/docs/controls-overviews/control-system-software.html).
+
+We have the next goals in mind:
 
   1. [Update the software on the RoboRIO](#update-the-roborio)
   2. [Configure the Open-Mesh Radio](#radio-configuration)
@@ -221,9 +232,9 @@ Create a new folder somewhere and name it something reasonable, like `FRC`. Open
 
 #### Robotpy
 
-Robotpy is the library we need to connect Python with our FRC electronics.
+Robotpy is the tool we use to connect Python with our FRC electronics. Mainly, we will be using robotpy to push code from our laptop to the robot.
 
-We need to:
+But first, we need to:
   1. Use `pip` to install robotpy
   2. Use `robotpy` to generate template files for our FRC robot.
 
@@ -241,9 +252,32 @@ To do this in VSCode:
 
 Inside the folder you created for this project you should see two new files: `pyproject.toml` and `robot.py`
 
+## Running the Robot
+
+### Deploying Code
+
+_Deployment_ is the process of putting software on the system it will actually be used.
+
+The way we deploy our code is to connect to the radio, which should have been configured to be broadcasting a wifi signal with name 3017. Make sure our wifi settings are set to this network.
+
+From the terminal, navigate to the folder where `pyproject.toml` and `robot.py` are. From there, we will run `deploy`. In VSCode, you can do the same as the previous section and:
+  - Create New Terminal (Ctrl+Shift+\`) and from within:
+    - MacOS: `python3 -m robotpy deploy`
+    - Windows: `py -3 -m robotpy deploy`
+
+The first time you run this it will ask you if you would like to generate test files. Hit yes as we would like it to try to catch our silly mistakes.
+
+### FRC Driver Station
+
+  - [Detailed Overview](https://docs.wpilib.org/en/stable/docs/software/driverstation/driver-station.html)
+
+With our wifi still on 3017, launch the driver station and select the tab that looks like a steering wheel. From there, select a mode, such as "TeleOperated", and hit "Enable" to start the robot.
+
 ## Programming in Python
 
-An example basic drivetrain for Python, along with an explanation of the code, can be found [here](https://docs.wpilib.org/en/stable/docs/zero-to-robot/step-4/creating-test-drivetrain-program-cpp-java-python.html).
+### Quick Start
+
+An example basic drivetrain for Python, along with an explanation of the code, can be found [here](https://docs.wpilib.org/en/stable/docs/zero-to-robot/step-4/creating-test-drivetrain-program-cpp-java-python.html).Make sure to select Python as the programming language.
 
 The main thing to understand is not to change any of the function names, and they will always behave the way it is described in that tutorial. Specifically:
   - `robotInit()` is called once when the robot turns on
@@ -261,7 +295,7 @@ The example working code for 2023's bot can also be found in the branches sectio
   - [REV](https://robotpy.readthedocs.io/projects/rev/en/stable/api.html): For programming motor controllers that are Spark or SparkMAX.
   - [CTRE](https://api.ctr-electronics.com/phoenix6/release/python/): For CTR Electronics such as Talon FX.
 
-#### How to Use
+#### How to Use the Docs
 
 The docs tell you about what objects are available to you and what actions each object can take. Let's demonstrate by using the docs to understand more deeply what is going on in the tutorial.
 
@@ -276,3 +310,149 @@ We first notice there is no wpilib.Timer package, which means Timer() probably e
 As a more complicated example, on line 41, we have `self.robotDrive.arcadeDrive(0.5, 0, squareInputs=False)` explained simply as "drives forward at half speed". We can see this is a `wpilib.drive.DifferentialDrive()` object and can be found in package `wpilib.drive`.
 
 In the differential drive [page](https://robotpy.readthedocs.io/projects/robotpy/en/stable/wpilib.drive/DifferentialDrive.html#wpilib.drive.DifferentialDrive), we get a full description of how it works, what coordinate frame it expects, and can see even cooler stuff available to us such as `curvatureDrive()`.
+
+### How to Program
+
+#### From a High Level
+
+If you're staring at the code in `robot.py` and wondering where to start, this is where you should start reading.
+
+Let's look at the skeleton of the example code:
+
+```
+import wpilib
+
+class MyRobot(wpilib.TimedRobot):
+    def robotInit(self):
+
+    def autonomousInit(self):
+
+    def autonomousPeriodic(self):
+
+    def teleopInit(self):
+
+    def teleopPeriodic(self):
+
+    def testInit(self):
+
+    def testPeriodic(self):
+
+if __name__ == "__main__":
+    wpilib.run(MyRobot)
+```
+
+From top to bottom, this does 3 things.
+
+  1. We import wpilib. [Wpilib](https://docs.wpilib.org/en/stable/docs/software/what-is-wpilib.html) is a set of software tools, called a _library_, that provide a framework for our Python code to work within the FRC ecosystem.
+  2. Create a class called `MyRobot`. A class is a definition of an _object_, explained [below](#side-note-on-classes).
+  3. Check that we are the main Python program (as opposed to being a library that is imported). If so, give the definition of `MyRobot` to wpilib's `run()` function.
+
+The bulk of our coding will be done inside the class definition.
+
+##### Note on Objects and Classes
+
+In programming languages, variables are our nouns and functions are our verbs. Usually certain actions are only associated with certain things. So we group them together into something called an _object_: a container of variables and functions. The way we define objects is to classify them, that's why we create a _class_.
+
+For example, think of an apple. If you hold up an apple and show it to me, that is an object. But the concept of an apple is really just a classification of objects. Not all objects are apples, only those that fit a certain description. It has properties (taste, smell, size, color, etc) and it has ways you can interact with it (bite, chop, skin, etc).
+
+Classes can also _inherit_ properties and interactions from other classes, meaning it can have access to all the variables and functions of its _parent/super class_ and extend upon it. For example, "fruit" is another class, and "apple" would be a _child/sub class_ and inherit properties like having a harvest time or actions like "eat".
+
+The way that classes work is we are given a special keyword called `self`, which will refer to the object that is created using the class. Inside our class we can define functions such as `def my_func(self)`. Notice that `self` is the first input argument passed to the function. We can access the _members_ of our class (our variables and functions) via a dot `.`, so we can also define variables using `self.x = 123`. It is best practice to define all your variables in the init function.
+
+#### MyRobot Class
+
+The `MyRobot` class is a class we create the inherits from wpilib's `TimedRobot` class. This is meant to work with the FRC driver station. Its [docs](https://robotpy.readthedocs.io/projects/robotpy/en/stable/wpilib/TimedRobot.html) state that it is meant to just be inherited from.
+
+As soon as you turn on the robot (close the 120A circuit breaker), the RoboRIO powers on and calls `robotInit()`. Then, from the FRC driver station you may select between autonomous, teleop, and test modes. When you select these modes, the corresponding functions will be called.
+
+For example, let's say we select teleop. Once we hit "Enable":
+
+  1. The code inside `telopInit()` is executed once.
+  2. The code inside `teleopPeriodic()` will be executed in a loop while we haven't hit the "Disable" button.
+
+Generally we want to avoid having while and/or for loops inside ther periodic functions unless we really want our robot to stop everything and wait for whatever is inside the loop to finish first.
+
+#### Robot Init
+
+```
+    def robotInit(self):
+        """
+        This function is called upon program startup and
+        should be used for any initialization code.
+        """
+```
+
+We need to initialize all the shared variables in our class that we want to use across the functions. Most importantly, we need to assign variable names to the various hardware components of our robot.
+
+---
+
+##### General Setup
+```
+        self.timer = wpilib.Timer()
+        self.logger = logging.getLogger(type(self).__name__)
+```
+
+The first thing we do is initialize some generally helpful stuff.
+
+Wpilib's `Timer()` class provides a timer for us to use to check how long it has been since we've enabled whatever mode we're in. We create a `Timer()` object and set it to the class variable `self.timer`.
+
+We also set up a logger. This requires us to have `import logging` at the top of the file. Logging is useful because it helps us print telemetry using set templates, such as recording the time or the value of certain variables. We can also define different types of templates for use in different situations such as "info", "warn", "error", etc...
+
+We create a logger object and assign it to the variable `self.logger`. We can print things using this logger by calling `self.logger.info("my message")`.
+
+  - [Timer Docs](https://robotpy.readthedocs.io/projects/robotpy/en/stable/wpilib/Timer.html#)
+  - [Logging Docs](https://docs.python.org/3/library/logging.html)
+
+---
+##### Hardware Configuration
+```
+        joystick_usb_port = 0
+        left_motor_channel = 0
+        right_motor_channel = 1
+
+        is_left_motor_inverted = False
+        is_right_motor_inverted = False
+```
+
+There are two main things we have to configure for our hardware.
+
+  1. Identify physical devices and map the ports/channels/etc to variables.
+  2. Define hardware settings that we want to persist through all modes. We do this at the top in one place so it's easier for us to organize and debug.
+
+###### How to Identify Devices
+
+  - USB: Check the list of USB devices before and after plugging in your controller.
+    - Windows: Go to *Device Manager* -> *Universal Serial Bus Controllers*. This lists all USB ports connected to the system.
+    - Mac: Open terminal and type `ls /dev/tty*`.
+  - Motor Controllers:
+    - PWM: Look along the right side of the RoboRIO for the PWM ports and trace what number each motor controller is connected to.
+    - CAN: Use manufacturer software to set the CAN ID for each motor controller.
+      - [REV Hardware Client](https://docs.revrobotics.com/rev-hardware-client/)
+      - [CTRE Phoenix 6](https://v6.docs.ctr-electronics.com/en/stable/)
+
+---
+##### Hardware Initialization
+
+```
+        self.joystick = wpilib.Joystick(joystick_usb_port)
+        self.leftDrive = wpilib.PWMSparkMax( left_motor_channel )
+        self.rightDrive = wpilib.PWMSparkMax( right_motor_channel )
+
+        self.drivetrain = wpilib.drive.DifferentialDrive( self.leftDrive, self.rightDrive )
+        self.leftDrive.setInverted(is_left_motor_inverted)
+        self.rightDrive.setInverted(is_right_motor_inverted)
+```
+
+We now need to:
+  1. Create our hardware connections.
+  2. Apply our configuration from the previous step.
+
+##### PWM
+
+If using PWM as the interface for communicating with motor controllers, we can use the PWM motor controller classes in wpilib. Check [the docs](https://robotpy.readthedocs.io/projects/robotpy/en/stable/wpilib.html) and search for classes that begin with PWM followed by the name of your motor. For example, if using the Spark MAX motor controller from REV Robotics, we use the `PWMSparkMax()` class.
+
+##### CAN
+
+If using CAN as the interface, you will need to use the class under the manufacturer's library. `rev` package of robotpy.
+
+First, go to `pyproject.toml` and uncomment the line with `rev`. Then add `import rev` to the top of your file.
